@@ -1,0 +1,7 @@
+venv
+.venv
+.env
+.qodo
+repos-backup
+Logs
+shell_logs.txt
