@@ -356,7 +356,7 @@ def main() -> None:
 
                 # refresh the live layout to show latest logs
                 repos_done += 1
-                logger.info("Repos done: %s", repos_done // len(repos) * 100)
+                logger.info("Repos done: %s/%s", repos_done, len(repos))
                 progress.advance(task, 1)
                 live.update(make_layout(current_repo=repo_name))
 
