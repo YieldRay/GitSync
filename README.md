@@ -64,19 +64,24 @@ Your GitHub repositories will be mirrored to GitLab, with logs and progress disp
 
 **Local**: Automate backups with the provided deploy script:
 
-1. Run the build script to set up your environment:
+1. Make the script executable:
+   ```
+   chmod +x build.sh deploy.sh
+   ```
+
+2. Run the build script to set up your environment:
    ```sh
    bash build.sh
    ```
 
-2. Run the deploy script to schedule automated backups:
+3. Run the deploy script to schedule automated backups:
    ```sh
    bash deploy.sh
    ```
    - You will be prompted for a cron schedule (e.g., `0 2 * * *` for daily at 2 AM).
    - The script will activate your `.venv` and schedule a cron job to run `main.py` automatically. Each time the cron job is triggered, a timestamped message is written to `shell_logs.txt`, followed by the output of the script.
 
-3. **Managing your cron jobs:**
+4. **Managing your cron jobs:**
    - View your cron jobs:
      ```sh
      crontab -l
@@ -90,7 +95,7 @@ Your GitHub repositories will be mirrored to GitLab, with logs and progress disp
      crontab -e
      ```
 
-4. **Logs:**
+5. **Logs:**
    - All output and errors from each run are written to `shell_logs.txt` in the project root. Each run starts with a line like `Cron job triggered at ...` so you can see exactly when the job was executed.
    - Detailed logs for each backup session are also saved in the `Logs/` folder, with timestamped filenames (e.g., `logs_YYYYMMDD_HHMMSS.txt`).
    - Check these files for progress, errors, and troubleshooting.
