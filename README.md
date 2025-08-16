@@ -15,7 +15,7 @@
 
 1. **Clone this masterpiece:**
    ```sh
-   git clone https://github.com/your-username/GitSync.git
+   git clone https://github.com/scienmanas/GitSync.git
    cd GitSync
    ```
 
