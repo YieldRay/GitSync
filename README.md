@@ -34,7 +34,7 @@
    GITLAB_USER=your-gitlab-username
    GITLAB_TOKEN=your-gitlab-token
    GITLAB_GROUP=your-gitlab-group   # Optional, for group namespace
-   REPO_VISIBILITY=auto   # Optional, set to 'public', 'private', or 'auto'
+   REPO_VISIBILITY=auto   # Optional. Set to 'public' to make all mirrored repos public on GitLab, 'private' to make all mirrored repos private, or 'auto' to match each repo's visibility to its original setting on GitHub.
    ```
 
    - Get a GitHub token with repo read access (don’t share it with strangers). 🤫
