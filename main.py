@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 from dotenv.main import logger
 import requests
@@ -29,15 +30,18 @@ GITLAB_USER = os.getenv("GITLAB_USER", "your-gitlab-username")
 GITLAB_GROUP = os.getenv("GITLAB_GROUP", None)
 # api + write_repository (or api)
 GITLAB_TOKEN = os.getenv("GITLAB_TOKEN", "your-gitlab-token")
-REPO_VISIBILITY=os.getenv("REPO_VISIBILITY", "auto")
+REPO_VISIBILITY = os.getenv("REPO_VISIBILITY", "auto")
 PER_PAGE = 100
 BACKUP_DIR = "./repos-backup"
 GITLAB_URL = "https://gitlab.com"
 LOGS_FOLDER = "Logs"
 SLEEP_BETWEEN_API = 0.5  # seconds
 
-# Logging
-# Logging
+# Ensure the backup and logs directories exist
+os.makedirs(BACKUP_DIR, exist_ok=True)
+os.makedirs(LOGS_FOLDER, exist_ok=True)
+
+# logger
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
@@ -56,7 +60,7 @@ LOG_MAX_LINES = 300
 logs_deque = deque(maxlen=LOG_MAX_LINES)
 console = Console()
 
-# Rich-aware logging handler that appends to logs_deque
+# Rich-aware logger handler that appends to logs_deque
 
 
 class RichBufferHandler(logging.Handler):
@@ -129,8 +133,8 @@ def get_github_repos():
         url = f"https://api.github.com/user/repos?per_page={PER_PAGE}&page={page}&&affiliation=owner,member"
         response = gh_session.get(url=url)
         if response.status_code != 200:
-            logging.error("GitHub API error %s: %s",
-                          response.status_code, response.text)
+            logger.error("GitHub API error %s: %s",
+                         response.status_code, response.text)
             break
 
         # Get data in json format
@@ -142,7 +146,7 @@ def get_github_repos():
         page += 1
         time.sleep(SLEEP_BETWEEN_API)
 
-    logging.info("Found %d GitHub repos", len(repos))
+    logger.info("Found %d GitHub repos", len(repos))
     return repos
 
 # Check if the project exists on gitlab
@@ -160,13 +164,14 @@ def get_gitlab_project(repo_name, user_name, group_id):
     # Hit the api
     response = gl_session.get(url)
     if response.status_code == 200:
-        logging.debug("Found GitLab project %s", proj_path)
+        logger.debug("Found GitLab project %s", proj_path)
         return response.json()
     elif response.status_code == 404:
-        logging.debug("GitLab project %s not found", proj_path)
+        logger.debug("GitLab project %s not found", proj_path)
         return None
     else:
-        logging.error("Error checking project %s: %s %s", proj_path, response.status_code, response.text)
+        logger.error("Error checking project %s: %s %s",
+                     proj_path, response.status_code, response.text)
         return None
 
 # Get the gitlab user id
@@ -179,21 +184,25 @@ def get_gitlab_group_id():
     response = gl_session.get(url)
     if response.status_code == 200:
         return response.json()["id"]
-    logging.error("Could not find GitLab group %s (status=%s). Response: %s",
-                  GITLAB_GROUP, response.status_code, response.text)
+    logger.error("Could not find GitLab group %s (status=%s). Response: %s",
+                 GITLAB_GROUP, response.status_code, response.text)
     raise SystemExit("GitLab group not found - check GITLAB_GROUP")
 
 # Update visibility
-def update_gitlab_project_visibility(project_id, visibility) :
+
+
+def update_gitlab_project_visibility(project_id, visibility):
     url = f"{GITLAB_URL}/api/v4/projects/{project_id}"
     data = {"visibility": visibility}
     response = gl_session.put(url, data=data)
-    
+
     if response.status_code == 200:
-        logging.info("Updated GitLab project %s visibility -> %s", project_id, visibility)
+        logger.info("Updated GitLab project %s visibility -> %s",
+                    project_id, visibility)
         return response.json()
     else:
-        logging.error("Failed to update visibility for project %s: %s %s", project_id, response.status_code, response.text)
+        logger.error("Failed to update visibility for project %s: %s %s",
+                     project_id, response.status_code, response.text)
         return None
 # Create Gitlab Project
 
@@ -212,10 +221,10 @@ def create_gitlab_project(group_id, repo_name, visibility="private"):
 
     response = gl_session.post(url, data=data)
     if response.status_code not in (201, 200):
-        logging.error("Failed to create project %s on GitLab: %s %s",
-                      repo_name, response.status_code, response.text)
+        logger.error("Failed to create project %s on GitLab: %s %s",
+                     repo_name, response.status_code, response.text)
 
-    logging.info("Created GitLab project %s", repo_name)
+    logger.info("Created GitLab project %s", repo_name)
     return response.json()
 
 # Mirror the github repos to local
@@ -231,46 +240,51 @@ def mirror_repos_from_github(repo_name, github_url, local_path) -> None:
 
     # Create a local copy of the github repo
     if not os.path.exists(local_path):
-        logging.info("Clonning (mirror) %s ...", repo_name)
+        logger.info("Clonning (mirror) %s ...", repo_name)
         try:
             run(["git", "clone", "--mirror", auth_clone_url, local_path])
         except Exception as e:
-            logging.exception("Failed to clone %s: %s", repo_name, e)
+            logger.exception("Failed to clone %s: %s", repo_name, e)
     else:
         try:
             run(["git", "--git-dir", local_path, "fetch", "--all", "--prune"])
         except Exception as e:
-            logging.exception("Failed to clone %s: %s", repo_name, e)
+            logger.exception("Failed to clone %s: %s", repo_name, e)
             # Attemp a reclone if corrupted
             try:
-                logging.info("Recloning %s due to fetch failure", repo_name)
+                logger.info("Recloning %s due to fetch failure", repo_name)
                 shutil.rmtree(local_path)
                 run(["git", "clone", "--mirror", auth_clone_url, local_path])
             except Exception as e2:
-                logging.exception("Reclone failed for %s: %s", repo_name, e2)
+                logger.exception("Reclone failed for %s: %s", repo_name, e2)
 
 # Chech repo in gitlab exists or not, if not make it
 
 
 def check_and_validate_gitlab_repos(group_id, repo_name, user_name, repo_visibility) -> None:
-    proj = get_gitlab_project(user_name=user_name, group_id=group_id, repo_name=repo_name)
-    if not proj :
-        logging.info("Project %s not found on GitLab. Creating...", repo_name)
+    proj = get_gitlab_project(
+        user_name=user_name, group_id=group_id, repo_name=repo_name)
+    if not proj:
+        logger.info("Project %s not found on GitLab. Creating...", repo_name)
         try:
-            create_gitlab_project(group_id=group_id, repo_name=repo_name, visibility=repo_visibility)
+            create_gitlab_project(
+                group_id=group_id, repo_name=repo_name, visibility=repo_visibility)
         except Exception as e:
-            logging.exception(
+            logger.exception(
                 "Could not create GitLab project %s: %s", repo_name, e)
-    else :
+    else:
         current_visibility = proj.get("visibility")
         if current_visibility != repo_visibility:
-            logging.info("Project %s exists on GitLab with visibility '%s' but desired is '%s'. Updating...", repo_name, current_visibility, repo_visibility)
+            logger.info("Project %s exists on GitLab with visibility '%s' but desired is '%s'. Updating...",
+                        repo_name, current_visibility, repo_visibility)
             try:
                 update_gitlab_project_visibility(proj["id"], repo_visibility)
             except Exception as e:
-                logging.exception("Failed to update visibility for %s: %s", repo_name, e)
+                logger.exception(
+                    "Failed to update visibility for %s: %s", repo_name, e)
         else:
-            logging.info("Project %s exists on GitLab with matching visibility '%s'.", repo_name, current_visibility)
+            logger.info("Project %s exists on GitLab with matching visibility '%s'.",
+                        repo_name, current_visibility)
 
 # Sync the repos to gitlab
 
@@ -285,11 +299,11 @@ def sync_repos(group_id, user_name, gitlab_token, repo_name, local_path) -> None
     else:
         push_url = gl_repo_url
 
-    logging.info("Pushing %s -> GitLab (%s) ...", repo_name, target_namespace)
+    logger.info("Pushing %s -> GitLab (%s) ...", repo_name, target_namespace)
     try:
         run(["git", "--git-dir", local_path, "push", "--mirror", push_url])
     except Exception as e:
-        logging.exception("Push failed for %s: %s", repo_name, e)
+        logger.exception("Push failed for %s: %s", repo_name, e)
 
 # Main function
 
@@ -297,10 +311,11 @@ def sync_repos(group_id, user_name, gitlab_token, repo_name, local_path) -> None
 def main() -> None:
     try:
         # Get the repos links and other stuff
+        repos_done = 0
         repos = get_github_repos()
         gitlab_group_id = get_gitlab_group_id()
         if not repos:
-            logging.info("No repos found; exiting.")
+            logger.info("No repos found; exiting.")
             return
 
         # Build a progress bar (top)
@@ -312,31 +327,33 @@ def main() -> None:
             expand=True,
             console=console
         )
-        task = progress.add_task(description="🔄 Syncing Repos", total=len(repos))
+        task = progress.add_task(
+            description="🔄 Syncing Repos", total=len(repos))
 
         # Live UI group: progress on top, logs panel below
         def make_layout(current_repo: str):
             # join last N lines for the logs panel
             # Show only the last 20 lines
             logs_text = "\n".join(list(logs_deque)[-50:] or ["(no logs yet)"])
-            panel = Panel(logs_text, title=f"Logs - {escape(current_repo)}", border_style="green", expand=True)
+            panel = Panel(
+                logs_text, title=f"Logs - {escape(current_repo)}", border_style="green", expand=True)
             return Group(progress, panel)
 
-        with Live(make_layout("starting..."), refresh_per_second=1, transient=True , console=console) as live:
+        with Live(make_layout("starting..."), refresh_per_second=1, transient=True, console=console) as live:
             for repo in repos:
-                repos_done = 0
                 repo_name = repo["name"]
                 github_url = repo["clone_url"]
                 repo_visibility = ""
-                if REPO_VISIBILITY is None or len(REPO_VISIBILITY) == 0 :
+                if REPO_VISIBILITY is None or len(REPO_VISIBILITY) == 0:
                     repo_visibility = "private"
-                elif REPO_VISIBILITY == "auto" :
+                elif REPO_VISIBILITY == "auto":
                     if "private" in repo:
                         repo_visibility = "private" if repo["private"] else "public"
-                else : repo_visibility=REPO_VISIBILITY
-                
+                else:
+                    repo_visibility = REPO_VISIBILITY
+
                 local_path = os.path.join(BACKUP_DIR, f"{repo_name}.git")
-                
+
                 # update current repo in progress bar
                 progress.update(task, description=f"🔄 Syncing {repo_name}")
 
@@ -349,7 +366,7 @@ def main() -> None:
                     check_and_validate_gitlab_repos(
                         group_id=gitlab_group_id, repo_name=repo_name, user_name=GITLAB_USER, repo_visibility=repo_visibility)
                     sync_repos(group_id=gitlab_group_id, user_name=GITLAB_USER,
-                            gitlab_token=GITLAB_TOKEN, repo_name=repo_name, local_path=local_path)
+                               gitlab_token=GITLAB_TOKEN, repo_name=repo_name, local_path=local_path)
                     logger.info("✅ Synced %s", repo_name)
                 except Exception as e:
                     logger.error("❌ Failed %s: %s", repo_name, e)
@@ -361,34 +378,34 @@ def main() -> None:
                 live.update(make_layout(current_repo=repo_name))
 
         # Final success message
-        logging.info("✅ All Done :), all repositories has been synced")
-        print("✅ All Done :), Now you can enjoy hehe")
+        logger.info(
+            "✅ All Done :), all repositories has been synced, please check the logs for details.")
+        print("✅ All Done :), Now you can enjoy hehe, please check the logs for details.")
     except KeyboardInterrupt:
-        logging.warning("Interrupted by user.")
+        logger.warning("Interrupted by user.")
     except Exception as e:
-        logging.exception("Something went wrong: %s", e)
+        logger.exception("Something went wrong: %s", e)
 
 
 # Run the programme
 if __name__ == "__main__":
-    import sys
-
-    os.makedirs(BACKUP_DIR, exist_ok=True)
-    os.makedirs(LOGS_FOLDER, exist_ok=True)
-    logger.info("####################### Logging Started ############################")
-    logger.info("#################### Timestamp: %s ######################", time.strftime("%Y-%m-%d %H:%M:%S"))
+    # Ensure the logs directory exists
+    logger.info(
+        "####################### logger Started ############################")
+    logger.info("#################### Timestamp: %s ######################",
+                time.strftime("%Y-%m-%d %H:%M:%S"))
 
     # ENV checks
     if not GITHUB_TOKEN:
-        logging.error("GITHUB_TOKEN environment variable is not set.")
+        logger.error("GITHUB_TOKEN environment variable is not set.")
         print("GITHUB_TOKEN environment variable is not set.")
         sys.exit(1)
     if not GITLAB_TOKEN:
-        logging.error("GITLAB_TOKEN environment variable is not set.")
+        logger.error("GITLAB_TOKEN environment variable is not set.")
         print("GITLAB_TOKEN environment variable is not set.")
         sys.exit(1)
     if not GITLAB_USER:
-        logging.error("GITLAB_USER environment variable is not set.")
+        logger.error("GITLAB_USER environment variable is not set.")
         print("GITLAB_USER environment variable is not set.")
         sys.exit(1)
 
