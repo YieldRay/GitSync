@@ -1,6 +1,5 @@
 #!/bin/bash
 # Deploy script for GitSync
-
 set -e
 
 # Activate venv
@@ -12,21 +11,19 @@ else
 fi
 
 echo ""
-echo ==== GitSync Cron Job Setup ====
+echo "==== GitSync Cron Job Setup ===="
+echo ""
 
-# Ask for schedule time (cron format)
-echo Enter the schedule for the cron job: 
+# Cron help text
+echo "Enter the schedule for the cron job (cron format: minute hour day month weekday)"
 echo ""
-echo ==== Cron Job Instructions ====
-echo "A cron job allows you to schedule tasks to run automatically at specified times."
-echo ""
-echo "Cron format consists of 5 fields: minute hour day month weekday."
 echo "Examples:"
-echo "  '0 2 * * *'   -> Run every day at 2 AM"
-echo "  '*/15 * * * *' -> Run every 15 minutes"
+echo "  '0 2 * * *'     -> Run every day at 2 AM"
+echo "  '*/15 * * * *'  -> Run every 15 minutes"
 echo ""
 echo "For more details, see: https://crontab.guru"
-echo "Example: '0 2 * * *' for every day at 2 AM"
+echo ""
+
 read -p "Cron schedule: " CRON_SCHEDULE
 if [ -z "$CRON_SCHEDULE" ]; then
     echo "Error: Cron schedule is required."
@@ -39,24 +36,27 @@ PYTHON_PATH="$PROJECT_DIR/.venv/bin/python"
 MAIN_PATH="$PROJECT_DIR/main.py"
 LOG_PATH="$PROJECT_DIR/shell_logs.txt"
 
-# Add cron job
-CRON_CMD="$CRON_SCHEDULE echo 'Cron job triggered at $(date)' >> $LOG_PATH; $PYTHON_PATH $MAIN_PATH >> $LOG_PATH 2>&1"
-# add only if not present
+# Build a single-line crontab entry that runs through /bin/sh -c so we can keep quoting simple.
+# Note: we escape $(date) so the date is evaluated when cron runs.
+CRON_CMD="$CRON_SCHEDULE /bin/sh -c '/bin/echo \"Cron job triggered at \$(date)\" >> \"$LOG_PATH\"; \"$PYTHON_PATH\" \"$MAIN_PATH\" >> \"$LOG_PATH\" 2>&1'"
+
+# Add only if not present. IMPORTANT: redirect crontab -l stderr to /dev/null so "no crontab" text
+# doesn't get injected into the file.
 if crontab -l 2>/dev/null | grep -F -xq "$CRON_CMD"; then
-  printf Cron job already exists, not adding.\n
+  printf "Cron job already exists, not adding.\n"
 else
-  (crontab -l  2>&1; echo "$CRON_CMD") | crontab -
-  printf Cron job scheduled.\n
+  ( crontab -l 2>/dev/null; echo "$CRON_CMD" ) | crontab -
+  printf "Cron job scheduled.\n"
 fi
 
-echo \nCron job scheduled!
+echo ""
+echo "Cron job scheduled!"
 echo ""
 echo "To view all your cron jobs:"
 echo "  crontab -l"
 echo "To remove all your cron jobs:"
 echo "  crontab -r"
-echo To remove just this job, edit with:
+echo "To remove just this job, edit with:"
 echo "  crontab -e"
-echo "and delete the relevant line for GitSync."
 echo ""
 echo "Logs will be written to $LOG_PATH. Check this file for details and troubleshooting."
