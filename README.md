@@ -107,6 +107,9 @@ Your GitHub repositories will be mirrored to GitLab, with logs and progress disp
 The logs are available in the `shell_logs.txt` file and in the `Logs/` folder. If you encounter any issues, check these logs for clues. If you need help, feel free to open an issue on GitHub.
 If you run into issues, check the logs in `shell_logs.txt` and the timestamped files in the `Logs/` folder. They’re like breadcrumbs leading you to the solution. 🕵️‍♀️
 
+## Screenshots
+
+
 ## Contributing 🤝
 
 - I only have macOS and Linux, so it is tested on those platforms and works. I’d love it if someone could test it on a Windows machine. If any errors come up, please open an issue detailing them. I will fix them when I can. 🐧🍏
