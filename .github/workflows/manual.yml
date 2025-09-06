@@ -1,28 +1,29 @@
 on:
   workflow_dispatch:
+    #  https://github.blog/changelog/2021-11-10-github-actions-input-types-for-manual-workflows/
     inputs:
       GITHUB_USER:
-        description: "your-github-username"
+        description: "GITHUB_USER"
         required: true
         type: string
       GITHUB_TOKEN:
-        description: "your-github-token"
+        description: "GITHUB_TOKEN"
         required: true
         type: string
       GITLAB_USER:
-        description: "your-gitlab-username"
+        description: "GITLAB_USER"
         required: true
         type: string
       GITLAB_TOKEN:
-        description: "your-gitlab-token"
+        description: "GITLAB_TOKEN"
         required: true
         type: string
       GITLAB_GROUP:
-        description: "Optional. For group namespace"
+        description: "GITLAB_GROUP (optional)"
         required: false
         type: string
       REPO_VISIBILITY:
-        description: "Optional. Set to 'public' to make all mirrored repos public on GitLab, 'private' to make all mirrored repos private, or 'auto' to match each repo's visibility to its original setting on GitHub."
+        description: "REPO_VISIBILITY (optional)"
         required: false
         default: "auto"
         type: choice
