@@ -1,0 +1,20 @@
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+    # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          pip install -r requirements.txt
+          python main.py
+        env:
+          GITHUB_USER: ${{ secrets.GITHUB_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLAB_USER: ${{ secrets.GITLAB_USER }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_GROUP: ${{ secrets.GITLAB_GROUP }}
+          

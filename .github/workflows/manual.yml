@@ -1,0 +1,48 @@
+on:
+  workflow_dispatch:
+    inputs:
+      GITHUB_USER:
+        description: "your-github-username"
+        required: true
+        type: string
+      GITHUB_TOKEN:
+        description: "your-github-token"
+        required: true
+        type: string
+      GITLAB_USER:
+        description: "your-gitlab-username"
+        required: true
+        type: string
+      GITLAB_TOKEN:
+        description: "your-gitlab-token"
+        required: true
+        type: string
+      GITLAB_GROUP:
+        description: "Optional. For group namespace"
+        required: false
+        type: string
+      REPO_VISIBILITY:
+        description: "Optional. Set to 'public' to make all mirrored repos public on GitLab, 'private' to make all mirrored repos private, or 'auto' to match each repo's visibility to its original setting on GitHub."
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - public
+          - private
+
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          pip install -r requirements.txt
+          python main.py
+        env:
+          GITHUB_USER: ${{ inputs.GITHUB_USER }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          GITLAB_USER: ${{ inputs.GITLAB_USER }}
+          GITLAB_TOKEN: ${{ inputs.GITLAB_TOKEN }}
+          GITLAB_GROUP: ${{ inputs.GITLAB_GROUP }}
+          REPO_VISIBILITY: ${{ inputs.REPO_VISIBILITY }}
